@@ -40,7 +40,6 @@ export default function Profile({ profile, onProfileUpdate }) {
   const [refreshKey, setRefreshKey] = useState(0)
   const [addCharOpen, setAddCharOpen] = useState(false)
   const [addCharInput, setAddCharInput] = useState('')
-  const [addCharIdInput, setAddCharIdInput] = useState('')
   const [addCharError, setAddCharError] = useState('')
   const [addCharLoading, setAddCharLoading] = useState(false)
   const [displayName, setDisplayName] = useState(profile?.display_name || '')
@@ -131,7 +130,6 @@ export default function Profile({ profile, onProfileUpdate }) {
     setAddCharLoading(true)
     const { error: rpcErr } = await supabase.rpc('add_character_to_my_account', {
       p_character_name: raw,
-      p_char_id_override: addCharIdInput.trim() || null,
       p_account_id: null,
     })
     setAddCharLoading(false)
@@ -141,7 +139,6 @@ export default function Profile({ profile, onProfileUpdate }) {
     }
     setAddCharOpen(false)
     setAddCharInput('')
-    setAddCharIdInput('')
     setRefreshKey((k) => k + 1)
   }
 
@@ -252,7 +249,7 @@ export default function Profile({ profile, onProfileUpdate }) {
                   type="button"
                   className="btn btn-ghost"
                   style={{ padding: '0.25rem 0.5rem', fontSize: '1.25rem', lineHeight: 1 }}
-                  onClick={() => { setAddCharOpen(true); setAddCharError(''); setAddCharInput(''); setAddCharIdInput(''); }}
+                  onClick={() => { setAddCharOpen(true); setAddCharError(''); setAddCharInput(''); }}
                   title="Add alt to this account"
                 >
                   +
@@ -288,7 +285,7 @@ export default function Profile({ profile, onProfileUpdate }) {
           {tab === 'characters' && addCharOpen && (
             <div className="card" style={{ marginTop: '1rem', maxWidth: '24rem' }}>
               <h3 style={{ marginTop: 0 }}>Add character to account</h3>
-              <p style={{ color: '#a1a1aa', fontSize: '0.875rem', marginBottom: '0.75rem' }}>Enter character name. If they’re not in the database, we’ll add them. Optionally provide char ID from server.</p>
+              <p style={{ color: '#a1a1aa', fontSize: '0.875rem', marginBottom: '0.75rem' }}>Enter character name. If they’re not in the database, we’ll add them.</p>
               <input
                 type="text"
                 className="input"
@@ -298,23 +295,14 @@ export default function Profile({ profile, onProfileUpdate }) {
                 onKeyDown={(e) => e.key === 'Enter' && handleAddCharacter()}
                 style={{ marginBottom: '0.5rem', width: '100%' }}
               />
-              <input
-                type="text"
-                className="input"
-                placeholder="Char ID (optional, from server)"
-                value={addCharIdInput}
-                onChange={(e) => setAddCharIdInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddCharacter()}
-                style={{ marginBottom: '0.5rem', width: '100%' }}
-              />
               {addCharError && <p style={{ color: '#f87171', fontSize: '0.875rem', marginBottom: '0.5rem' }}>{addCharError}</p>}
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button type="button" className="btn" onClick={handleAddCharacter} disabled={addCharLoading}>
                   {addCharLoading ? 'Adding...' : 'Add'}
                 </button>
-<button type="button" className="btn btn-ghost" onClick={() => { setAddCharOpen(false); setAddCharError(''); setAddCharInput(''); setAddCharIdInput(''); }} disabled={addCharLoading}>
-              Cancel
-            </button>
+                <button type="button" className="btn btn-ghost" onClick={() => { setAddCharOpen(false); setAddCharError(''); setAddCharInput(''); }} disabled={addCharLoading}>
+                  Cancel
+                </button>
               </div>
             </div>
           )}
