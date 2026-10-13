@@ -4,8 +4,9 @@ import { supabase } from '../lib/supabase'
 import { useDkpData, ACTIVE_DAYS } from '../lib/dkpLeaderboard'
 import { usePersistedState } from '../lib/usePersistedState'
 import DkpSiteDisclaimer from '../components/DkpSiteDisclaimer'
+import { MyDkpStandingsView, useMyAccountDkp } from '../components/MyDkpStandings'
 
-export default function DKP({ isOfficer }) {
+export default function DKP({ isOfficer, profile }) {
   const {
     list: leaderboard,
     accountList: accountLeaderboard,
@@ -17,6 +18,7 @@ export default function DKP({ isOfficer }) {
     mutate,
     apiData,
   } = useDkpData()
+  const myDkp = useMyAccountDkp(profile?.account_id)
   const [refreshing, setRefreshing] = useState(false)
   const [mutationError, setMutationError] = useState('')
 
@@ -68,6 +70,7 @@ export default function DKP({ isOfficer }) {
   return (
     <div className="container">
       <h1>DKP Leaderboard</h1>
+      <MyDkpStandingsView {...myDkp} />
       <DkpSiteDisclaimer />
       <p style={{ color: '#71717a' }}>
         One row per account (one human). Earned is that account’s attendance total, the same sum as the account page. Spent is loot from the summary cache.
