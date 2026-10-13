@@ -37,3 +37,34 @@ export function formatMyDkpTotal(totals) {
   const spent = Number(totals?.spent || 0)
   return `Your DKP total is: ${balance} (earned ${earned} \u00B7 spent ${spent})`
 }
+
+export const MISSING_DKP_NOTE = 'If you think you are missing dkp, remember to make a Discord post in #dkp_etc channel with details'
+
+/** Attendance credit, not a loot-only row. Explicit `attended: false` stays excluded. */
+export function raidWasAttended(act) {
+  if (!act) return false
+  if (act.attended === false) return false
+  if (act.attended === true) return true
+  return Number(act.dkpEarned) > 0 || Number(act.ticEarned) > 0
+}
+
+/**
+ * Newest raid this account attended. Same order as the raids list: date, then raid id.
+ * @param {Array<{ raid_id?: string, date?: string, dkpEarned?: number, dkpRaidTotal?: number, attended?: boolean, ticEarned?: number }>} activityByRaid
+ */
+export function mostRecentAttendedRaid(activityByRaid) {
+  const rows = (activityByRaid || []).filter(raidWasAttended)
+  rows.sort((a, b) => {
+    const byDate = (b.date || '').localeCompare(a.date || '')
+    if (byDate !== 0) return byDate
+    return String(b.raid_id || '').localeCompare(String(a.raid_id || ''))
+  })
+  return rows[0] || null
+}
+
+/** Earned on that raid versus the full tic total one person could receive. */
+export function formatRaidDkpEarned(raid) {
+  const earned = Math.round(Number(raid?.dkpEarned) || 0)
+  const total = Math.round(Number(raid?.dkpRaidTotal) || 0)
+  return `You earned ${earned} DKP out of ${total} DKP`
+}
