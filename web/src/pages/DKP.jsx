@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { useDkpData, ACTIVE_DAYS } from '../lib/dkpLeaderboard'
 import {
   LEADERBOARD_SORT_COLUMNS,
+  attendanceShareColor,
+  attendanceSharePercent,
   compareLeaderboardRows,
   leaderboardRowMetrics,
   nextLeaderboardSort,
@@ -183,16 +185,18 @@ export default function DKP({ isOfficer, profile }) {
               const metrics = leaderboardRowMetrics(r, accountTotalsByAccountId)
               const total30 = periodTotals['30d'] || 0
               const total60 = periodTotals['60d'] || 0
-              const cell30 = total30 > 0 ? `${metrics.earned30} / ${total30} (${Math.round((metrics.earned30 / total30) * 100)}%)` : '—'
-              const cell60 = total60 > 0 ? `${metrics.earned60} / ${total60} (${Math.round((metrics.earned60 / total60) * 100)}%)` : '—'
+              const pct30 = attendanceSharePercent(metrics.earned30, total30)
+              const pct60 = attendanceSharePercent(metrics.earned60, total60)
+              const cell30 = pct30 == null ? '—' : `${metrics.earned30} / ${total30} (${pct30}%)`
+              const cell60 = pct60 == null ? '—' : `${metrics.earned60} / ${total60} (${pct60}%)`
               return (
                 <tr key={r.account_id + i}>
                   <td><Link to={`/accounts/${r.account_id}`}>{r.name}</Link></td>
                   <td style={{ color: 'var(--balance-green, #22c55e)', fontWeight: 'bold' }}>{metrics.balance}</td>
                   <td>{metrics.earned}</td>
                   <td>{metrics.spent}</td>
-                  <td>{cell30}</td>
-                  <td>{cell60}</td>
+                  <td style={pct30 == null ? undefined : { color: attendanceShareColor(pct30) }}>{cell30}</td>
+                  <td style={pct60 == null ? undefined : { color: attendanceShareColor(pct60) }}>{cell60}</td>
                 </tr>
               )
             })}

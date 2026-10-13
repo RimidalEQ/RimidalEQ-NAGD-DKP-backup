@@ -1,6 +1,25 @@
 /** Leaderboard columns that can be sorted from the header. */
 export const LEADERBOARD_SORT_COLUMNS = ['account', 'balance', 'earned', 'spent', '30d', '60d']
 
+export const ATTENDANCE_GREEN = '#22c55e'
+export const ATTENDANCE_YELLOW = '#fbbf24'
+export const ATTENDANCE_RED = '#f87171'
+
+/** Rounded share of period DKP, matching the percent shown in the 30d and 60d cells. */
+export function attendanceSharePercent(earned, total) {
+  const pool = Number(total) || 0
+  if (pool <= 0) return null
+  return Math.round(((Number(earned) || 0) / pool) * 100)
+}
+
+/** Above 45% green, 10% through 45% yellow, below 10% red. */
+export function attendanceShareColor(percent) {
+  if (percent == null || !Number.isFinite(percent)) return null
+  if (percent > 45) return ATTENDANCE_GREEN
+  if (percent >= 10) return ATTENDANCE_YELLOW
+  return ATTENDANCE_RED
+}
+
 const COLUMN_SET = new Set(LEADERBOARD_SORT_COLUMNS)
 
 export function normalizeLeaderboardSort(key, dir) {

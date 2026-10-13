@@ -1,6 +1,14 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { compareLeaderboardRows, nextLeaderboardSort } from './dkpLeaderboardSort.js'
+import {
+  ATTENDANCE_GREEN,
+  ATTENDANCE_RED,
+  ATTENDANCE_YELLOW,
+  attendanceShareColor,
+  attendanceSharePercent,
+  compareLeaderboardRows,
+  nextLeaderboardSort,
+} from './dkpLeaderboardSort.js'
 
 const rows = [
   { account_id: '1', name: 'Zed', balance: 10, earned: 100, spent: 90, earned_30d: 1, earned_60d: 5 },
@@ -38,6 +46,30 @@ describe('leaderboard column sort', () => {
   it('sorts earned and spent with the same full-total numbers the table shows', () => {
     assert.deepEqual(order('earned', 'desc'), ['2', '1', '3'])
     assert.deepEqual(order('spent', 'asc'), ['3', '1', '2'])
+  })
+})
+
+describe('attendance share colors', () => {
+  it('colors the rounded percent: green above 45, yellow from 10 through 45, red below 10', () => {
+    assert.equal(attendanceShareColor(46), ATTENDANCE_GREEN)
+    assert.equal(attendanceShareColor(100), ATTENDANCE_GREEN)
+    assert.equal(attendanceShareColor(45), ATTENDANCE_YELLOW)
+    assert.equal(attendanceShareColor(10), ATTENDANCE_YELLOW)
+    assert.equal(attendanceShareColor(9), ATTENDANCE_RED)
+    assert.equal(attendanceShareColor(0), ATTENDANCE_RED)
+    assert.equal(attendanceShareColor(null), null)
+  })
+
+  it('rounds before coloring so the color matches the percent in the cell', () => {
+    assert.equal(attendanceSharePercent(456, 1000), 46)
+    assert.equal(attendanceShareColor(attendanceSharePercent(456, 1000)), ATTENDANCE_GREEN)
+    assert.equal(attendanceSharePercent(454, 1000), 45)
+    assert.equal(attendanceShareColor(attendanceSharePercent(454, 1000)), ATTENDANCE_YELLOW)
+    assert.equal(attendanceSharePercent(96, 1000), 10)
+    assert.equal(attendanceShareColor(attendanceSharePercent(96, 1000)), ATTENDANCE_YELLOW)
+    assert.equal(attendanceSharePercent(94, 1000), 9)
+    assert.equal(attendanceShareColor(attendanceSharePercent(94, 1000)), ATTENDANCE_RED)
+    assert.equal(attendanceSharePercent(0, 0), null)
   })
 })
 
