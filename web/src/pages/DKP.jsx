@@ -2,6 +2,13 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useDkpData, ACTIVE_DAYS } from '../lib/dkpLeaderboard'
+import {
+  LEADERBOARD_SORT_COLUMNS,
+  compareLeaderboardRows,
+  leaderboardRowMetrics,
+  nextLeaderboardSort,
+  normalizeLeaderboardSort,
+} from '../lib/dkpLeaderboardSort'
 import { usePersistedState } from '../lib/usePersistedState'
 import DkpSiteDisclaimer from '../components/DkpSiteDisclaimer'
 import { MyDkpStandingsView, useMyAccountDkp } from '../components/MyDkpStandings'
@@ -47,6 +54,9 @@ export default function DKP({ isOfficer, profile }) {
   }, [mutate])
 
   const [accountSearch, setAccountSearch] = usePersistedState('/dkp:accountSearch', '')
+  const [sortKey, setSortKey] = usePersistedState('/dkp:sortKey', 'balance')
+  const [sortDir, setSortDir] = usePersistedState('/dkp:sortDir', 'desc')
+  const sort = normalizeLeaderboardSort(sortKey, sortDir)
   const filteredLeaderboard = useMemo(() => {
     if (!accountSearch.trim()) return accountLeaderboard
     const q = accountSearch.trim().toLowerCase()
@@ -61,8 +71,17 @@ export default function DKP({ isOfficer, profile }) {
       return false
     })
   }, [accountLeaderboard, accountSearch, apiData?.accounts])
-  const showList = filteredLeaderboard
+  const showList = useMemo(
+    () => [...filteredLeaderboard].sort((a, b) => compareLeaderboardRows(a, b, sort.key, sort.dir, accountTotalsByAccountId)),
+    [filteredLeaderboard, sort.key, sort.dir, accountTotalsByAccountId],
+  )
   const colLabel = 'Account'
+
+  function handleSort(column) {
+    const next = nextLeaderboardSort(sort.key, sort.dir, column)
+    setSortKey(next.key)
+    setSortDir(next.dir)
+  }
 
   if (loading && !showList.length) return <div className="container">Loading DKP…</div>
   if (error && !showList.length) return <div className="container"><span className="error">{error}</span></div>
@@ -127,32 +146,51 @@ export default function DKP({ isOfficer, profile }) {
         <table>
           <thead>
             <tr>
-              <th style={{ textDecoration: 'underline' }}>{colLabel}</th>
-              <th style={{ color: 'var(--balance-green, #22c55e)', fontWeight: 'bold', textDecoration: 'underline' }}>Balance</th>
-              <th style={{ textDecoration: 'underline' }}>Earned</th>
-              <th style={{ textDecoration: 'underline' }}>Spent</th>
-              <th style={{ textDecoration: 'underline' }} title="DKP earned / total DKP in period; % = share in period">30d</th>
-              <th style={{ textDecoration: 'underline' }} title="DKP earned / total DKP in period; % = share in period">60d</th>
+              {LEADERBOARD_SORT_COLUMNS.map((column) => {
+                const active = sort.key === column
+                const label = column === 'account' ? colLabel : column === '30d' ? '30d' : column === '60d' ? '60d' : column[0].toUpperCase() + column.slice(1)
+                const title = column === '30d' || column === '60d'
+                  ? 'DKP earned / total DKP in period; % = share in period. Sort uses DKP earned in the period.'
+                  : `Sort by ${label}`
+                return (
+                  <th
+                    key={column}
+                    aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    style={column === 'balance' ? { color: 'var(--balance-green, #22c55e)', fontWeight: 'bold' } : undefined}
+                  >
+                    <button
+                      type="button"
+                      className="dkp-sort-btn"
+                      onClick={() => handleSort(column)}
+                      title={title}
+                      aria-label={`${title}. ${active ? `Sorted ${sort.dir === 'asc' ? 'ascending' : 'descending'}` : 'Not sorted'}.`}
+                    >
+                      <span className="dkp-sort-label">{label}</span>
+                      {active && (
+                        <span
+                          className={`dkp-sort-triangle ${sort.dir === 'asc' ? 'dkp-sort-triangle-asc' : 'dkp-sort-triangle-desc'}`}
+                          aria-hidden="true"
+                        />
+                      )}
+                    </button>
+                  </th>
+                )
+              })}
             </tr>
           </thead>
           <tbody>
             {showList.slice(0, 200).map((r, i) => {
-              const full = accountTotalsByAccountId?.[r.account_id]
-              const balance = full != null ? full.balance : Number(r.balance)
-              const earned = full != null ? full.earned : Number(r.earned)
-              const spent = full != null ? full.spent : Number(r.spent)
+              const metrics = leaderboardRowMetrics(r, accountTotalsByAccountId)
               const total30 = periodTotals['30d'] || 0
               const total60 = periodTotals['60d'] || 0
-              const e30 = full != null ? full.earned_30d : (r.earned_30d != null ? Math.round(r.earned_30d) : 0)
-              const e60 = full != null ? full.earned_60d : (r.earned_60d != null ? Math.round(r.earned_60d) : 0)
-              const cell30 = total30 > 0 ? `${e30} / ${total30} (${Math.round((e30 / total30) * 100)}%)` : '—'
-              const cell60 = total60 > 0 ? `${e60} / ${total60} (${Math.round((e60 / total60) * 100)}%)` : '—'
+              const cell30 = total30 > 0 ? `${metrics.earned30} / ${total30} (${Math.round((metrics.earned30 / total30) * 100)}%)` : '—'
+              const cell60 = total60 > 0 ? `${metrics.earned60} / ${total60} (${Math.round((metrics.earned60 / total60) * 100)}%)` : '—'
               return (
                 <tr key={r.account_id + i}>
                   <td><Link to={`/accounts/${r.account_id}`}>{r.name}</Link></td>
-                  <td style={{ color: 'var(--balance-green, #22c55e)', fontWeight: 'bold' }}>{balance}</td>
-                  <td>{earned}</td>
-                  <td>{spent}</td>
+                  <td style={{ color: 'var(--balance-green, #22c55e)', fontWeight: 'bold' }}>{metrics.balance}</td>
+                  <td>{metrics.earned}</td>
+                  <td>{metrics.spent}</td>
                   <td>{cell30}</td>
                   <td>{cell60}</td>
                 </tr>
