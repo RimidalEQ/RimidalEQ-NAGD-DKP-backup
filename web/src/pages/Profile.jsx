@@ -13,7 +13,7 @@ const PROFILE_TABS = ['activity', 'characters']
 const RAID_ADMIN_TIPS = {
   showTicCharacterPicker: 'Raid Admin, Add DKP tic. On: the full character list is shown so you can move people into Attending, in addition to pasting a channel list. Off: that list is hidden and attendance comes from the paste. Characters already in Attending stay selected and are still credited until you clear them.',
   useCharacterAdminSelectors: 'Site Admin, Raid Admin loot, and the raid page. On: pickers list every character and filter by character name. Off: pickers show one row per account and match an account, alt, or character. The account and the character that will be credited are both shown.',
-  requireDiscordRaidName: 'Raid Admin, new raid. On: the paste must be a Discord raid_schedule line. The raid name is the text after the colon, and the date is the text after the last dash. Example: Friday 10/09 12:46pm est: Water Minis - October 9, 2026 12:46 PM. Off: any text is saved as the raid name, and the raid date is today.',
+  requireDiscordRaidName: 'Raid Admin, new raid. On: paste a Discord raid line. The name is the text after the colon, and the date is the text after the last dash. Off: enter a raid name. The date is today unless the text includes a Discord date.',
 }
 
 function normalizeProfileTab(raw) {

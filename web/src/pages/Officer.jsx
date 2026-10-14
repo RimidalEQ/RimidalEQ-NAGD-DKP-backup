@@ -10,7 +10,7 @@ import { DKP_DATA_KEY } from '../lib/dkpLeaderboard'
 import { groupRaidLootByEvent } from '../lib/groupRaidLootByEvent'
 import { buildItemNameToIdMap, buildLootMobLookups, subgroupLootRowsByMob } from '../lib/lootMobSubgroups'
 import {
-  parseRequiredDiscordRaidLine,
+  parseRaidString,
   parseChannelList,
   parseLootLogByMatch,
   indexCharactersByName,
@@ -30,7 +30,7 @@ import {
 import TicDateTimeFields from '../components/TicDateTimeFields'
 import TicMemberPicker from '../components/TicMemberPicker'
 import AttendeeCountCell from '../components/AttendeeCountCell'
-import { discordRaidNameRequired, normalizeUiPreferences, readTicDraft, writeTicDraft } from '../lib/uiPreferences'
+import { normalizeUiPreferences, readTicDraft, writeTicDraft } from '../lib/uiPreferences'
 import { buildAccountAdminRows, filterAccountAdminRows } from '../lib/siteAdminCharacters'
 
 /** Generate a unique raid_id for officer-created raids (string, no collision with numeric imports). */
@@ -87,7 +87,7 @@ export default function Officer({ isOfficer, profile }) {
   const uiPrefs = normalizeUiPreferences(profile?.ui_preferences)
   const showTicCharacterPicker = uiPrefs.showTicCharacterPicker
   const useCharacterAdminSelectors = uiPrefs.useCharacterAdminSelectors
-  const requireDiscordRaidName = discordRaidNameRequired(uiPrefs)
+  const raidNameOnly = uiPrefs.raidNameOnly
   const [itemNames, setItemNames] = useState([])
   const [jsonLootItemNames, setJsonLootItemNames] = useState([])
   const [lootMobJson, setLootMobJson] = useState(null)
@@ -485,25 +485,15 @@ export default function Officer({ isOfficer, profile }) {
   }
 
   const handleAddRaid = async () => {
+    setMutating(true)
     setAddRaidResult(null)
     setError('')
-    const trimmed = raidPaste.trim()
-    let raidName = trimmed
-    let dateIso = ''
-    if (requireDiscordRaidName) {
-      const parsed = parseRequiredDiscordRaidLine(trimmed)
-      if (!parsed.ok) {
-        setError(parsed.error)
-        return
-      }
-      raidName = parsed.raidName
-      dateIso = parsed.dateIso
-    }
-    if (!raidName) {
+    const { raidName, dateIso } = parseRaidString(raidPaste)
+    if (!raidName.trim()) {
       setError('Enter the Raid Name.')
+      setMutating(false)
       return
     }
-    setMutating(true)
     const raid_id = generateRaidId()
     const { error: err } = await supabase.from('raids').insert({
       raid_id,
@@ -1516,20 +1506,20 @@ export default function Officer({ isOfficer, profile }) {
         <section ref={addRaidSectionRef} className="card officer-create">
           <h2 style={{ marginTop: 0 }}>Add raid</h2>
           <p className="officer-hint">
-            {requireDiscordRaidName
-              ? 'Paste a Discord raid line. The name is the text after the colon, and the date is the text after the last dash.'
-              : 'Enter any raid name. The raid date is today.'}
+            {raidNameOnly
+              ? 'Enter the Raid Name. The raid date is today unless the text includes a Discord date.'
+              : 'Paste a Discord raid line. The name is the text after the colon, and the date is the text after the last dash.'}
           </p>
           <textarea
             ref={raidPasteRef}
             className="officer-paste"
             value={raidPaste}
             onChange={(e) => setRaidPaste(e.target.value)}
-            placeholder={requireDiscordRaidName
-              ? 'Friday 10/09 12:46pm est: Water Minis - October 9, 2026 12:46 PM'
-              : 'Raid name'}
-            rows={requireDiscordRaidName ? 3 : 2}
-            aria-label={requireDiscordRaidName ? 'Discord raid line' : 'Raid name'}
+            placeholder={raidNameOnly
+              ? 'Enter the Raid Name'
+              : 'Friday 10/09 12:46pm est: Water Minis - October 9, 2026 12:46 PM'}
+            rows={raidNameOnly ? 2 : 3}
+            aria-label={raidNameOnly ? 'Raid name' : 'Discord raid line'}
           />
           <div className="officer-field-row" style={{ marginTop: '0.5rem' }}>
             <button type="button" className="btn" onClick={handleAddRaid} disabled={mutating || !raidPaste.trim()}>

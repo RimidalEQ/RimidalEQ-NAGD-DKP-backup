@@ -201,7 +201,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS display_name TEXT;
 COMMENT ON COLUMN profiles.display_name IS 'Site profile name (the person). Not the game account label (accounts.display_name).';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ui_preferences JSONB NOT NULL DEFAULT '{}'::jsonb;
 COMMENT ON COLUMN profiles.ui_preferences IS
-  'Per site user presentation preferences. Allowed keys: showTicCharacterPicker, useCharacterAdminSelectors, raidNameOnly. Missing keys are treated as true in the app. raidNameOnly true allows any raid name; false requires a Discord raid line. Not a game account and not shared by officers.';
+  'Per site user presentation preferences. Allowed keys: showTicCharacterPicker, useCharacterAdminSelectors, raidNameOnly. Missing keys mean on in the app. Not a game account and not shared by officers.';
 ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_ui_preferences_object;
 ALTER TABLE profiles ADD CONSTRAINT profiles_ui_preferences_object
   CHECK (jsonb_typeof(ui_preferences) = 'object');
