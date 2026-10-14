@@ -231,36 +231,36 @@ export default function Profile({ profile, onProfileUpdate }) {
                 <input
                   type="checkbox"
                   checked={uiPrefs.showTicCharacterPicker}
-                  title={RAID_ADMIN_TIPS.showTicCharacterPicker}
+                  aria-describedby="raid-admin-tip-attendance"
                   onChange={(e) => setPreference('showTicCharacterPicker', e.target.checked)}
                 />
                 <span>Show full list for Attendance tics</span>
               </span>
-              <span className="raid-admin-tip">{RAID_ADMIN_TIPS.showTicCharacterPicker}</span>
+              <span id="raid-admin-tip-attendance" className="raid-admin-tip" role="tooltip">{RAID_ADMIN_TIPS.showTicCharacterPicker}</span>
             </label>
             <label className="raid-admin-option">
               <span className="raid-admin-option-row">
                 <input
                   type="checkbox"
                   checked={uiPrefs.useCharacterAdminSelectors}
-                  title={RAID_ADMIN_TIPS.useCharacterAdminSelectors}
+                  aria-describedby="raid-admin-tip-site-admin"
                   onChange={(e) => setPreference('useCharacterAdminSelectors', e.target.checked)}
                 />
                 <span>Show full list for Site Admin</span>
               </span>
-              <span className="raid-admin-tip">{RAID_ADMIN_TIPS.useCharacterAdminSelectors}</span>
+              <span id="raid-admin-tip-site-admin" className="raid-admin-tip" role="tooltip">{RAID_ADMIN_TIPS.useCharacterAdminSelectors}</span>
             </label>
             <label className="raid-admin-option">
               <span className="raid-admin-option-row">
                 <input
                   type="checkbox"
                   checked={discordRaidNameRequired(uiPrefs)}
-                  title={RAID_ADMIN_TIPS.requireDiscordRaidName}
+                  aria-describedby="raid-admin-tip-discord"
                   onChange={(e) => setPreference('raidNameOnly', !e.target.checked)}
                 />
                 <span>Require Discord raid_schedule raid names</span>
               </span>
-              <span className="raid-admin-tip">{RAID_ADMIN_TIPS.requireDiscordRaidName}</span>
+              <span id="raid-admin-tip-discord" className="raid-admin-tip" role="tooltip">{RAID_ADMIN_TIPS.requireDiscordRaidName}</span>
             </label>
             {prefsError && <p className="profile-raid-admin-status" style={{ color: '#f87171' }}>{prefsError}</p>}
             {prefsSaved && <p className="profile-raid-admin-status" style={{ color: '#86efac' }}>Saved.</p>}
