@@ -10,7 +10,7 @@ import { DKP_DATA_KEY } from '../lib/dkpLeaderboard'
 import { groupRaidLootByEvent } from '../lib/groupRaidLootByEvent'
 import { buildItemNameToIdMap, buildLootMobLookups, subgroupLootRowsByMob } from '../lib/lootMobSubgroups'
 import {
-  parseRaidString,
+  parseRequiredDiscordRaidLine,
   parseChannelList,
   parseLootLogByMatch,
   indexCharactersByName,
@@ -30,7 +30,7 @@ import {
 import TicDateTimeFields from '../components/TicDateTimeFields'
 import TicMemberPicker from '../components/TicMemberPicker'
 import AttendeeCountCell from '../components/AttendeeCountCell'
-import { normalizeUiPreferences, readTicDraft, writeTicDraft } from '../lib/uiPreferences'
+import { discordRaidNameRequired, normalizeUiPreferences, readTicDraft, writeTicDraft } from '../lib/uiPreferences'
 import { buildAccountAdminRows, filterAccountAdminRows } from '../lib/siteAdminCharacters'
 
 /** Generate a unique raid_id for officer-created raids (string, no collision with numeric imports). */
@@ -87,7 +87,7 @@ export default function Officer({ isOfficer, profile }) {
   const uiPrefs = normalizeUiPreferences(profile?.ui_preferences)
   const showTicCharacterPicker = uiPrefs.showTicCharacterPicker
   const useCharacterAdminSelectors = uiPrefs.useCharacterAdminSelectors
-  const raidNameOnly = uiPrefs.raidNameOnly
+  const requireDiscordRaidName = discordRaidNameRequired(uiPrefs)
   const [itemNames, setItemNames] = useState([])
   const [jsonLootItemNames, setJsonLootItemNames] = useState([])
   const [lootMobJson, setLootMobJson] = useState(null)
@@ -155,13 +155,6 @@ export default function Officer({ isOfficer, profile }) {
   const [expandedEvents, setExpandedEvents] = useState({})
   const [showLootDropdown, setShowLootDropdown] = useState(false)
   const [showLootCharDropdown, setShowLootCharDropdown] = useState(false)
-
-  // Add single attendee to a tic
-  const [addToTicEventId, setAddToTicEventId] = useState('')
-  const [addToTicCharQuery, setAddToTicCharQuery] = useState('')
-  const [addToTicCharId, setAddToTicCharId] = useState('')
-  const [showCharDropdown, setShowCharDropdown] = useState(false)
-  const [addToTicResult, setAddToTicResult] = useState(null)
 
   const nameToChar = useMemo(() => {
     const m = {}
@@ -458,64 +451,6 @@ export default function Officer({ isOfficer, profile }) {
     }
   }, [events, lootEventId])
 
-  const handleAddAttendeeToTic = async () => {
-    if (!selectedRaidId || !addToTicEventId) return
-    const name = addToTicCharQuery.trim()
-    const picked = addToTicCharId
-      ? characters.find((row) => String(row.char_id) === String(addToTicCharId) && (row.name || '').trim())
-      : null
-    const char = picked
-      ? { char_id: picked.char_id, name: picked.name.trim() }
-      : nameToChar[name.toLowerCase()]
-    if (!char) {
-      setError(useCharacterAdminSelectors
-        ? 'Select a character from the list (name must match DKP list).'
-        : 'Select an account from the list so the character to credit is known.')
-      return
-    }
-    const alreadyInTic = eventAttendance.some((r) => String(r.event_id) === String(addToTicEventId) && String(r.char_id) === String(char.char_id))
-    if (alreadyInTic) {
-      setError(`${char.name} is already in this tic.`)
-      return
-    }
-    const accountId = charIdToAccountId[char.char_id] ?? null
-    if (accountId != null) {
-      const accountAlreadyInTic = eventAttendance.some(
-        (r) => String(r.event_id) === String(addToTicEventId) && charIdToAccountId[r.char_id] === accountId
-      )
-      if (accountAlreadyInTic) {
-        setError('That account already has a character in this tic. Only one character per account per tic is allowed.')
-        return
-      }
-    }
-    setMutating(true)
-    setAddToTicResult(null)
-    setError('')
-    const { error: attErr } = await supabase.rpc('add_attendee_to_tic', {
-      p_raid_id: selectedRaidId,
-      p_event_id: addToTicEventId,
-      p_char_id: String(char.char_id),
-      p_character_name: char.name,
-    })
-    if (attErr) {
-      setError(attErr.message)
-      setMutating(false)
-      return
-    }
-    await logOfficerAudit(supabase, {
-      action: 'add_attendee_to_tic',
-      target_type: 'raid_event_attendance',
-      target_id: addToTicEventId,
-      delta: { r: selectedRaidId, e: addToTicEventId, c: char.name },
-    })
-    setAddToTicResult(char.name)
-    setAddToTicCharQuery('')
-    try { sessionStorage.removeItem('dkp_leaderboard_v2') } catch (_) {}
-    await loadSelectedRaid()
-    globalMutate(DKP_DATA_KEY)
-    setMutating(false)
-  }
-
   const handleCreateAccount = async () => {
     setNewAccountError('')
     setNewAccountResult(null)
@@ -550,15 +485,25 @@ export default function Officer({ isOfficer, profile }) {
   }
 
   const handleAddRaid = async () => {
-    setMutating(true)
     setAddRaidResult(null)
     setError('')
-    const { raidName, dateIso } = parseRaidString(raidPaste)
-    if (!raidName.trim()) {
+    const trimmed = raidPaste.trim()
+    let raidName = trimmed
+    let dateIso = ''
+    if (requireDiscordRaidName) {
+      const parsed = parseRequiredDiscordRaidLine(trimmed)
+      if (!parsed.ok) {
+        setError(parsed.error)
+        return
+      }
+      raidName = parsed.raidName
+      dateIso = parsed.dateIso
+    }
+    if (!raidName) {
       setError('Enter the Raid Name.')
-      setMutating(false)
       return
     }
+    setMutating(true)
     const raid_id = generateRaidId()
     const { error: err } = await supabase.from('raids').insert({
       raid_id,
@@ -1291,18 +1236,6 @@ export default function Officer({ isOfficer, profile }) {
     () => buildAccountAdminRows(characters, characterAccountRows, accounts),
     [characters, characterAccountRows, accounts]
   )
-  const filteredCharacterNames = useMemo(() => {
-    const q = addToTicCharQuery.toLowerCase().trim()
-    if (!q) return characterNamesList.slice(0, 200)
-    return characterNamesList.filter((n) => n.toLowerCase().includes(q)).slice(0, 200)
-  }, [characterNamesList, addToTicCharQuery])
-  const filteredAddToTicAccounts = useMemo(
-    () => filterAccountAdminRows(accountAdminRows, addToTicCharQuery).slice(0, 200),
-    [accountAdminRows, addToTicCharQuery]
-  )
-
-  const showAddToTicDropdown = showCharDropdown
-
   const filteredLootCharacterNames = useMemo(() => {
     const q = lootCharName.toLowerCase().trim()
     if (!q) return characterNamesList.slice(0, 200)
@@ -1583,20 +1516,20 @@ export default function Officer({ isOfficer, profile }) {
         <section ref={addRaidSectionRef} className="card officer-create">
           <h2 style={{ marginTop: 0 }}>Add raid</h2>
           <p className="officer-hint">
-            {raidNameOnly
-              ? 'Enter the Raid Name. The raid date is today unless the text includes a Discord date.'
-              : 'Paste a Discord raid line. The name is the text after the colon, and the date is the text after the last dash.'}
+            {requireDiscordRaidName
+              ? 'Paste a Discord raid line. The name is the text after the colon, and the date is the text after the last dash.'
+              : 'Enter any raid name. The raid date is today.'}
           </p>
           <textarea
             ref={raidPasteRef}
             className="officer-paste"
             value={raidPaste}
             onChange={(e) => setRaidPaste(e.target.value)}
-            placeholder={raidNameOnly
-              ? 'Enter the Raid Name'
-              : 'Friday 10/09 12:46pm est: Water Minis - October 9, 2026 12:46 PM'}
-            rows={raidNameOnly ? 2 : 3}
-            aria-label={raidNameOnly ? 'Raid name' : 'Discord raid line'}
+            placeholder={requireDiscordRaidName
+              ? 'Friday 10/09 12:46pm est: Water Minis - October 9, 2026 12:46 PM'
+              : 'Raid name'}
+            rows={requireDiscordRaidName ? 3 : 2}
+            aria-label={requireDiscordRaidName ? 'Discord raid line' : 'Raid name'}
           />
           <div className="officer-field-row" style={{ marginTop: '0.5rem' }}>
             <button type="button" className="btn" onClick={handleAddRaid} disabled={mutating || !raidPaste.trim()}>
@@ -1811,99 +1744,6 @@ export default function Officer({ isOfficer, profile }) {
                 <ResultNames label="Missing from this tic" names={ticResult.missingFromThisTicDisplay} tone="alert" />
                 <ResultNames label="New this tic" names={ticResult.newThisTicDisplay} tone="muted" />
               </div>
-            )}
-            {events.length > 0 && (
-              <>
-                <hr className="officer-divider" />
-                <h3 style={{ marginTop: 0 }}>Add one character</h3>
-                <p className="officer-hint">
-                  Someone missed the paste. DKP goes to that character&apos;s linked account.
-                  {!useCharacterAdminSelectors && ' Search by account, alt, or character. The account and the character that will be credited are both shown.'}
-                </p>
-                <div className="officer-loot-fields">
-                  <select
-                    value={addToTicEventId}
-                    onChange={(e) => { setAddToTicEventId(e.target.value); setAddToTicResult(null) }}
-                    aria-label="Select DKP tic to add character to"
-                  >
-                    {events.map((e) => (
-                      <option key={e.event_id} value={e.event_id}>
-                        #{e.event_order} {displayTicEventName(e, raidDateIso)} ({e.dkp_value} DKP)
-                      </option>
-                    ))}
-                  </select>
-                  <div className="officer-suggest-wrap">
-                    <input
-                      type="text"
-                      name="dkp-tic-character"
-                      value={addToTicCharQuery}
-                      onChange={(e) => { setAddToTicCharQuery(e.target.value); setAddToTicCharId(''); setAddToTicResult(null); setShowCharDropdown(true) }}
-                      onFocus={() => setShowCharDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowCharDropdown(false), 200)}
-                      placeholder={useCharacterAdminSelectors ? 'Character name (type to filter)' : 'Account, character, or alt'}
-                      autoComplete="off"
-                      aria-expanded={showAddToTicDropdown}
-                      aria-haspopup="listbox"
-                      aria-controls="add-to-tic-char-list"
-                      aria-label={useCharacterAdminSelectors ? 'Character to add' : 'Account to add'}
-                    />
-                    {showAddToTicDropdown && (
-                      <ul key={addToTicCharQuery} id="add-to-tic-char-list" className="card officer-suggest" role="listbox" onMouseDown={(e) => e.preventDefault()}>
-                        {useCharacterAdminSelectors ? (
-                          filteredCharacterNames.length === 0 ? (
-                            <li style={{ color: '#71717a', cursor: 'default' }}>
-                              {characterNamesList.length === 0 ? 'Loading characters…' : (addToTicCharQuery.trim() ? 'No matching characters' : 'Type to filter')}
-                            </li>
-                          ) : (
-                            filteredCharacterNames.map((n) => (
-                              <li
-                                key={n}
-                                role="option"
-                                onMouseDown={(e) => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  const matches = characters.filter((row) => (row.name || '').trim().toLowerCase() === n.toLowerCase())
-                                  setAddToTicCharQuery(n)
-                                  setAddToTicCharId(matches.length === 1 ? String(matches[0].char_id) : '')
-                                  setTimeout(() => setShowCharDropdown(false), 0)
-                                }}
-                              >
-                                {n}
-                              </li>
-                            ))
-                          )
-                        ) : filteredAddToTicAccounts.length === 0 ? (
-                          <li style={{ color: '#71717a', cursor: 'default' }}>
-                            {accountAdminRows.length === 0 ? 'Loading accounts…' : (addToTicCharQuery.trim() ? 'No matching accounts' : 'Type to filter')}
-                          </li>
-                        ) : (
-                          filteredAddToTicAccounts.map((row) => (
-                            <li
-                              key={row.key}
-                              role="option"
-                              onMouseDown={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                setAddToTicCharQuery(row.label)
-                                setAddToTicCharId(row.char_id ? String(row.char_id) : '')
-                                setTimeout(() => setShowCharDropdown(false), 0)
-                              }}
-                            >
-                              {row.label}
-                            </li>
-                          ))
-                        )}
-                      </ul>
-                    )}
-                  </div>
-                  <button type="button" className="btn" onClick={handleAddAttendeeToTic} disabled={mutating || !addToTicCharQuery.trim()}>
-                    Add to tic
-                  </button>
-                </div>
-                {addToTicResult && (
-                  <p className="officer-success" style={{ marginBottom: 0 }}>Added {addToTicResult} to tic.</p>
-                )}
-              </>
             )}
           </section>
 

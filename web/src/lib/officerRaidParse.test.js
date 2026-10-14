@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   parseChannelList,
   parseRaidString,
+  parseRequiredDiscordRaidLine,
   parseLootLogByMatch,
   generateEventId,
   resolveTicNames,
@@ -123,6 +124,24 @@ describe('parseRaidString', () => {
     assert.equal(raidName, 'UI tic test')
     const expected = new Date('October 9, 2026 12:46 PM').toISOString().slice(0, 19).replace('T', ' ')
     assert.equal(dateIso, expected)
+  })
+})
+
+describe('parseRequiredDiscordRaidLine', () => {
+  it('requires the name after the colon and a date after the last dash', () => {
+    const line = 'Friday 10/09 12:46pm est: UI tic test - October 9, 2026 12:46 PM'
+    const parsed = parseRequiredDiscordRaidLine(line)
+    assert.equal(parsed.ok, true)
+    assert.equal(parsed.raidName, 'UI tic test')
+    const expected = new Date('October 9, 2026 12:46 PM').toISOString().slice(0, 19).replace('T', ' ')
+    assert.equal(parsed.dateIso, expected)
+  })
+
+  it('rejects a plain raid name and a line with no parseable date', () => {
+    assert.equal(parseRequiredDiscordRaidLine('Veeshan\'s Peak').ok, false)
+    assert.equal(parseRequiredDiscordRaidLine('Friday: Veeshan\'s Peak').ok, false)
+    assert.equal(parseRequiredDiscordRaidLine('Friday: Veeshan\'s Peak - Week 1').ok, false)
+    assert.match(parseRequiredDiscordRaidLine('just a name').error, /after the colon/)
   })
 })
 

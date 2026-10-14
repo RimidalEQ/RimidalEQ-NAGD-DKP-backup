@@ -20,6 +20,29 @@ export function parseRaidString(str) {
   return { raidName, dateIso }
 }
 
+const DISCORD_RAID_LINE_ERROR = 'Paste a Discord raid line. The name is the text after the colon, and the date is the text after the last dash.'
+const DISCORD_DATE = /(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}/i
+
+function discordDateIso(datePart) {
+  const part = (datePart || '').trim()
+  if (!DISCORD_DATE.test(part)) return ''
+  const d = new Date(part)
+  if (isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 19).replace('T', ' ')
+}
+
+/** Require a Discord raid_schedule line. Name is the text after the colon. Date is the text after the last dash. */
+export function parseRequiredDiscordRaidLine(str) {
+  const s = (str || '').trim()
+  const colonIdx = s.indexOf(':')
+  const dashMatch = s.match(/\s+-\s+([^-]+)$/)
+  if (colonIdx <= 0 || !dashMatch) return { ok: false, error: DISCORD_RAID_LINE_ERROR }
+  const { raidName } = parseRaidString(s)
+  const dateIso = discordDateIso(dashMatch[1])
+  if (!raidName || !dateIso) return { ok: false, error: DISCORD_RAID_LINE_ERROR }
+  return { ok: true, raidName, dateIso }
+}
+
 function pushNameTokens(chunk, names) {
   String(chunk || '').split(',').forEach((n) => {
     const name = n.trim()
