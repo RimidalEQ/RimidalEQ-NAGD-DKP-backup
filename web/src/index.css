@@ -547,8 +547,10 @@ label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: #a1a
 .officer-suggest li { padding: 0.4rem 0.6rem; cursor: pointer; }
 .officer-suggest li:hover { background: #27272a; }
 .officer-loot-fields { display: flex; flex-direction: column; gap: 0.5rem; }
+.officer-loot-price { display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem; }
 .officer-loot-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .officer-price-label {
+  display: block;
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;

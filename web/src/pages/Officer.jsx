@@ -1887,20 +1887,22 @@ export default function Officer({ isOfficer, profile }) {
                   </ul>
                 )}
               </div>
-              <div className="officer-loot-actions">
+              <div className="officer-loot-price">
                 <label className="officer-price-label" htmlFor="loot-item-price">Item price (DKP)</label>
-                <input
-                  id="loot-item-price"
-                  className="officer-cost"
-                  type="number"
-                  min={0}
-                  value={lootCost}
-                  onChange={(e) => setLootCost(e.target.value)}
-                  aria-label="Item price (DKP)"
-                />
-                <button type="button" className="btn" onClick={handleAddLootManual} disabled={mutating || !lootItemQuery.trim()}>
-                  Add
-                </button>
+                <div className="officer-loot-actions">
+                  <input
+                    id="loot-item-price"
+                    className="officer-cost"
+                    type="number"
+                    min={0}
+                    value={lootCost}
+                    onChange={(e) => setLootCost(e.target.value)}
+                    aria-label="Item price (DKP)"
+                  />
+                  <button type="button" className="btn" onClick={handleAddLootManual} disabled={mutating || !lootItemQuery.trim()}>
+                    Add
+                  </button>
+                </div>
               </div>
               {events.length > 0 && (
                 <div className="officer-loot-event">
