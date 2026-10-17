@@ -5,6 +5,8 @@ import { fetchAll } from '../lib/accountData'
 import { supabase } from '../lib/supabase'
 import { usePersistedState } from '../lib/usePersistedState'
 import { compareAccountsByName } from '../lib/accountSort'
+import { useScrollContentReady } from '../lib/routeScrollView'
+import MyDkpStandings from '../components/MyDkpStandings'
 import {
   formatCharacterClassSpentLine,
   buildSpentByAccountFromLoot,
@@ -19,11 +21,12 @@ function claimedByLabel(names) {
   return names.map((name) => (name || '').trim() || '—').join(', ')
 }
 
-export default function Accounts() {
+export default function Accounts({ profile }) {
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = usePersistedState('/accounts:search', '')
+  useScrollContentReady(!loading)
 
   useEffect(() => {
     const cache = createCache(ACCOUNTS_LIST_CACHE_KEY, CACHE_TTL)
@@ -135,6 +138,7 @@ export default function Accounts() {
   return (
     <div className="container">
       <h1>Accounts &amp; characters</h1>
+      <MyDkpStandings accountId={profile?.account_id} />
       <p style={{ color: '#71717a', marginBottom: '1rem' }}>
         All accounts with full character lists. Type a name to find who it is.
       </p>
@@ -180,7 +184,7 @@ export default function Accounts() {
             {filteredAccounts.map((acc) => {
               const chars = acc.characters || []
               return (
-                <tr key={acc.account_id}>
+                <tr key={acc.account_id} data-scroll-anchor={acc.account_id}>
                   <td style={{ verticalAlign: 'top', color: acc.claimed_by === 'unclaimed' ? '#71717a' : undefined }}>
                     {acc.claimed_by}
                   </td>

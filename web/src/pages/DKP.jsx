@@ -5,6 +5,7 @@ import { useDkpData, ACTIVE_DAYS } from '../lib/dkpLeaderboard'
 import {
   LEADERBOARD_SORT_COLUMNS,
   attendanceShareColor,
+  attendanceShareEarned,
   attendanceSharePercent,
   compareLeaderboardRows,
   leaderboardRowMetrics,
@@ -12,6 +13,7 @@ import {
   normalizeLeaderboardSort,
 } from '../lib/dkpLeaderboardSort'
 import { usePersistedState } from '../lib/usePersistedState'
+import { useScrollContentReady } from '../lib/routeScrollView'
 import DkpSiteDisclaimer from '../components/DkpSiteDisclaimer'
 import { MyDkpStandingsView, useMyAccountDkp } from '../components/MyDkpStandings'
 
@@ -77,6 +79,8 @@ export default function DKP({ isOfficer, profile }) {
     () => [...filteredLeaderboard].sort((a, b) => compareLeaderboardRows(a, b, sort.key, sort.dir, accountTotalsByAccountId)),
     [filteredLeaderboard, sort.key, sort.dir, accountTotalsByAccountId],
   )
+  useScrollContentReady(!loading)
+
   const colLabel = 'Account'
 
   function handleSort(column) {
@@ -187,10 +191,10 @@ export default function DKP({ isOfficer, profile }) {
               const total60 = periodTotals['60d'] || 0
               const pct30 = attendanceSharePercent(metrics.earned30, total30)
               const pct60 = attendanceSharePercent(metrics.earned60, total60)
-              const cell30 = pct30 == null ? '—' : `${metrics.earned30} / ${total30} (${pct30}%)`
-              const cell60 = pct60 == null ? '—' : `${metrics.earned60} / ${total60} (${pct60}%)`
+              const cell30 = pct30 == null ? '—' : `${attendanceShareEarned(metrics.earned30, total30)} / ${total30} (${pct30}%)`
+              const cell60 = pct60 == null ? '—' : `${attendanceShareEarned(metrics.earned60, total60)} / ${total60} (${pct60}%)`
               return (
-                <tr key={r.account_id + i}>
+                <tr key={r.account_id + i} data-scroll-anchor={r.account_id}>
                   <td><Link to={`/accounts/${r.account_id}`}>{r.name}</Link></td>
                   <td style={{ color: 'var(--balance-green, #22c55e)', fontWeight: 'bold' }}>{metrics.balance}</td>
                   <td>{metrics.earned}</td>

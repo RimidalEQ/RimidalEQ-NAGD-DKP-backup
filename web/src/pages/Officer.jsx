@@ -36,13 +36,23 @@ import {
 import TicDateTimeFields from '../components/TicDateTimeFields'
 import TicMemberPicker from '../components/TicMemberPicker'
 import AttendeeCountCell from '../components/AttendeeCountCell'
+import { normalizeUiPreferences, readBrowserTicDraft, writeBrowserTicDraft } from '../lib/uiPreferences'
 import { usePersistedState } from '../lib/usePersistedState'
-import { normalizeUiPreferences, readTicDraft, writeTicDraft } from '../lib/uiPreferences'
+import { useScrollContentReady } from '../lib/routeScrollView'
 import { buildAccountAdminRows, filterAccountAdminRows } from '../lib/siteAdminCharacters'
 
 /** Generate a unique raid_id for officer-created raids (string, no collision with numeric imports). */
 function generateRaidId() {
   return `manual-${Date.now()}`
+}
+
+function normalizeExpandedFlags(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out = {}
+  for (const [key, value] of Object.entries(raw)) {
+    if (key && typeof value === 'boolean') out[key] = value
+  }
+  return out
 }
 
 function ticOptionLabel(event, raidDateIso) {
@@ -68,7 +78,7 @@ function ResultNames({ label, names, tone }) {
   )
 }
 
-export default function Officer({ isOfficer, profile }) {
+export default function Officer({ isOfficer, profile, userId }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -120,7 +130,7 @@ export default function Officer({ isOfficer, profile }) {
   const [raidWhenTouched, setRaidWhenTouched] = useState(false)
   const [addRaidResult, setAddRaidResult] = useState(null)
   const [showCreateRaid, setShowCreateRaid] = useState(() => window.location.hash === '#add-raid')
-  const [raidPickerQuery, setRaidPickerQuery] = useState('')
+  const [raidPickerQuery, setRaidPickerQuery] = usePersistedState('/officer/RaidAdmin:raidPickerQuery', '')
   const [showRaidPicker, setShowRaidPicker] = useState(false)
 
   // Add tic
@@ -168,8 +178,10 @@ export default function Officer({ isOfficer, profile }) {
   const [lootEventId, setLootEventId] = useState('')
   const [expandedEvents, setExpandedEvents] = usePersistedState(
     selectedRaidId ? `/officer/RaidAdmin:${selectedRaidId}:expandedEvents` : '/officer/RaidAdmin:none:expandedEvents',
-    {}
+    {},
+    normalizeExpandedFlags,
   )
+  useScrollContentReady(!loading)
   const [showLootDropdown, setShowLootDropdown] = useState(false)
   const [showLootCharDropdown, setShowLootCharDropdown] = useState(false)
 
@@ -1314,11 +1326,11 @@ export default function Officer({ isOfficer, profile }) {
   useEffect(() => {
     const previousRaidId = ticRaidRef.current
     if (previousRaidId && previousRaidId !== selectedRaidId) {
-      writeTicDraft(sessionStorage, previousRaidId, ticDraftRef.current)
+      writeBrowserTicDraft(previousRaidId, ticDraftRef.current, userId)
     }
     ticRaidRef.current = selectedRaidId
     skipTicDraftWrite.current = true
-    const draft = readTicDraft(sessionStorage, selectedRaidId)
+    const draft = readBrowserTicDraft(selectedRaidId, userId)
     if (draft) {
       setTicPaste(draft.ticPaste)
       setTicResolutions(draft.ticResolutions)
@@ -1346,7 +1358,7 @@ export default function Officer({ isOfficer, profile }) {
     setTicMemberQuery('')
     availableAnchorRef.current = null
     attendingAnchorRef.current = null
-  }, [selectedRaidId])
+  }, [selectedRaidId, userId])
 
   useEffect(() => {
     if (skipTicDraftWrite.current) {
@@ -1354,7 +1366,7 @@ export default function Officer({ isOfficer, profile }) {
       return
     }
     if (!selectedRaidId) return
-    writeTicDraft(sessionStorage, selectedRaidId, {
+    writeBrowserTicDraft(selectedRaidId, {
       ticPaste,
       ticResolutions,
       ticExcludedCharIds,
@@ -1364,8 +1376,8 @@ export default function Officer({ isOfficer, profile }) {
       ticDate,
       ticTime,
       ticDateTimeTouched,
-    })
-  }, [selectedRaidId, ticPaste, ticResolutions, ticExcludedCharIds, ticAttendingIds, ticDestination, ticDkpValue, ticDate, ticTime, ticDateTimeTouched])
+    }, userId)
+  }, [selectedRaidId, ticPaste, ticResolutions, ticExcludedCharIds, ticAttendingIds, ticDestination, ticDkpValue, ticDate, ticTime, ticDateTimeTouched, userId])
 
   useEffect(() => {
     if (firstEqStampInPaste(ticPaste)) return
@@ -2038,7 +2050,7 @@ export default function Officer({ isOfficer, profile }) {
                   const isEditingTime = editingEventTimeId === e.event_id
                   return (
                     <Fragment key={e.event_id}>
-                      <tr>
+                      <tr data-scroll-anchor={eid}>
                         <td>{e.event_order}</td>
                         <td>{displayTicEventName(e, raidDateIso)}</td>
                         <td>
