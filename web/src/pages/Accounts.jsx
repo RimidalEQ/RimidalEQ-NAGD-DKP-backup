@@ -4,6 +4,7 @@ import { ACCOUNTS_LIST_CACHE_KEY, createCache } from '../lib/cache'
 import { fetchAll } from '../lib/accountData'
 import { supabase } from '../lib/supabase'
 import { usePersistedState } from '../lib/usePersistedState'
+import { compareAccountsByName } from '../lib/accountSort'
 import {
   formatCharacterClassSpentLine,
   buildSpentByAccountFromLoot,
@@ -110,7 +111,7 @@ export default function Accounts() {
           characters,
         }
       })
-      accList.sort((x, y) => (y.characters?.length || 0) - (x.characters?.length || 0))
+      accList.sort(compareAccountsByName)
       setAccounts(accList)
       setLoading(false)
       cache.set(accList)

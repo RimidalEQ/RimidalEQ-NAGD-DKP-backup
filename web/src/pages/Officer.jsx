@@ -36,6 +36,7 @@ import {
 import TicDateTimeFields from '../components/TicDateTimeFields'
 import TicMemberPicker from '../components/TicMemberPicker'
 import AttendeeCountCell from '../components/AttendeeCountCell'
+import { usePersistedState } from '../lib/usePersistedState'
 import { normalizeUiPreferences, readTicDraft, writeTicDraft } from '../lib/uiPreferences'
 import { buildAccountAdminRows, filterAccountAdminRows } from '../lib/siteAdminCharacters'
 
@@ -165,7 +166,10 @@ export default function Officer({ isOfficer, profile }) {
   const [raidNameDraft, setRaidNameDraft] = useState('')
   const [raidNameError, setRaidNameError] = useState('')
   const [lootEventId, setLootEventId] = useState('')
-  const [expandedEvents, setExpandedEvents] = useState({})
+  const [expandedEvents, setExpandedEvents] = usePersistedState(
+    selectedRaidId ? `/officer/RaidAdmin:${selectedRaidId}:expandedEvents` : '/officer/RaidAdmin:none:expandedEvents',
+    {}
+  )
   const [showLootDropdown, setShowLootDropdown] = useState(false)
   const [showLootCharDropdown, setShowLootCharDropdown] = useState(false)
 

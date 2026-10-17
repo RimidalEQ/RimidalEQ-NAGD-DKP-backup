@@ -62,7 +62,7 @@ export default function LootRecipients() {
   const { accountBalanceByAccountId } = useDkpData() // single source of truth for Account DKP total (same cache as DKP page)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [expandedLootRows, setExpandedLootRows] = useState(() => new Set()) // character_key -> show full loot list
+  const [expandedLootRows, setExpandedLootRows] = usePersistedState('/loot-recipients:expanded', {})
   const [mobLoot, setMobLoot] = useState(null)
   const [raidItemSources, setRaidItemSources] = useState(null)
 
@@ -290,7 +290,7 @@ export default function LootRecipients() {
     return list
   }, [loot, raids, characters, accounts, accountBalanceByAccountId, characterDkpSpent, classFilter, sortBy, months, getAccountId])
 
-  if (loading) return <div className="container">Loading…</div>
+  if (loading && loot.length === 0) return <div className="container">Loading…</div>
   if (error) return <div className="container"><span className="error">{error}</span> <Link to="/">← Home</Link></div>
 
   return (
@@ -352,13 +352,11 @@ export default function LootRecipients() {
                 const accountTo = r.account_id ? `/accounts/${r.account_id}` : null
                 const characterTo = `/characters/${encodeURIComponent(r.character_name)}`
                 const lootCount = r.lootItems.length
-                const showCollapsed = lootCount > LOOT_COLLAPSE_THRESHOLD && !expandedLootRows.has(r.character_key)
+                const showCollapsed = lootCount > LOOT_COLLAPSE_THRESHOLD && !expandedLootRows?.[r.character_key]
                 const toggleLoot = () => {
                   setExpandedLootRows((prev) => {
-                    const next = new Set(prev)
-                    if (next.has(r.character_key)) next.delete(r.character_key)
-                    else next.add(r.character_key)
-                    return next
+                    const current = prev && typeof prev === 'object' ? prev : {}
+                    return { ...current, [r.character_key]: !current[r.character_key] }
                   })
                 }
                 return (

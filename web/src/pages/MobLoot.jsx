@@ -237,8 +237,8 @@ export default function MobLoot() {
   const [filterSlot, setFilterSlot] = usePersistedState('/mobs:filterSlot', '')
   const [filterClass, setFilterClass] = usePersistedState('/mobs:filterClass', '')
   const [loading, setLoading] = useState(true)
-  const [expanded, setExpanded] = useState({})
-  const [itemsShownPerKey, setItemsShownPerKey] = useState({}) // key -> number to show
+  const [expanded, setExpanded] = usePersistedState('/mobs:expanded', {})
+  const [itemsShownPerKey, setItemsShownPerKey] = usePersistedState('/mobs:itemsShown', {})
   const [itemLast3, setItemLast3] = useState({})
   const [mobZoneFromRaids, setMobZoneFromRaids] = useState({})
   const [itemStatsReady, setItemStatsReady] = useState(false)
